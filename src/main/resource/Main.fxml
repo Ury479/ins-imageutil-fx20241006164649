@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- FXML 文件升级优化 -->
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.paint.Color?>
+<?import javafx.scene.text.Font?>
+
+<VBox prefHeight="700.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.image.MainController">
+   <children>
+      <!-- 顶部图片拖拽区域 -->
+      <AnchorPane maxHeight="-1.0" maxWidth="-1.0" prefHeight="500.0" prefWidth="1000.0" style="-fx-background-color: #FFE5A8;" VBox.vgrow="ALWAYS">
+         <children>
+            <!-- 图片显示区域 -->
+            <AnchorPane fx:id="imagePane" layoutX="150.0" layoutY="60.0" onDragDropped="#imageDragDropped" onDragOver="#imageDragOver" prefHeight="300.0" prefWidth="300.0" style="-fx-background-color: #eeeeee; -fx-border-width: 1px; -fx-border-color: #dddddd;">
+               <children>
+                  <ImageView fx:id="imageView" cache="true" fitHeight="300.0" fitWidth="300.0" nodeOrientation="INHERIT" pickOnBounds="true" preserveRatio="true" />
+                  <!-- 提示标签：文件拖放区域 -->
+                  <Label fx:id="imageLabel" layoutX="103.0" layoutY="141.0" opacity="0.7" text="Drag file(s) here" textFill="#999999">
+                     <font>
+                        <Font size="14.0" />
+                     </font>
+                  </Label>
+                  <!-- 水印标签 -->
+                  <Label fx:id="waterMark" layoutX="200.0" layoutY="180.0" opacity="0.7" textFill="#999999">
+                     <font>
+                        <Font size="36.0" />
+                     </font>
+                  </Label>
+               </children>
+            </AnchorPane>
+            <!-- 水印配置区域 -->
+            <AnchorPane fx:id="waterMarkConfig" layoutX="40.0" layoutY="430.0" visible="false">
+               <children>
+                  <Label text="Water Mark Config">
+                     <font>
+                        <Font size="14.0" />
+                     </font>
+                  </Label>
+                  <!-- 水印文本输入框 -->
+                  <TextField fx:id="waterMarkText" layoutY="27.0" onKeyReleased="#changeWaterMarkText" promptText="Please input text" />
+                  <!-- 水印大小滑块 -->
+                  <Slider fx:id="waterMarkSize" blockIncrement="2.0" layoutX="72.0" layoutY="67.0" majorTickUnit="20.0" max="56.0" min="16.0" onMouseDragged="#changeWaterMarkSize" showTickLabels="true" value="36.0" />
+                  <Slider fx:id="waterMarkRotate" layoutX="72.0" layoutY="103.0" majorTickUnit="90.0" max="90.0" min="-90.0" minorTickCount="1" onMouseDragged="#changeWaterMarkRotate" showTickLabels="true" />
+                  <!-- 水印颜色选择器 -->
+                  <ColorPicker fx:id="waterMarkColor" layoutX="75.0" layoutY="143.0" onAction="#changeWaterMarkColor" prefHeight="26.0" prefWidth="132.0" />
+                  <!-- 水印透明度滑块 -->
+                  <Slider fx:id="waterMarkOpacity" blockIncrement="0.1" layoutX="72.0" layoutY="178.0" max="1.0" onMouseDragged="#changeWaterMarkOpacity" showTickLabels="true" value="0.5" />
+                  <!-- 标签说明 -->
+                  <Label layoutY="72.0" text="Size" textFill="#838383" />
+                  <Label layoutY="110.0" text="Rotate" textFill="#838383" />
+                  <Label layoutY="148.0" text="Color" textFill="#838383" />
+                  <Label layoutY="185.0" text="Opacity" textFill="#838383" />
+               </children>
+            </AnchorPane>
+            <!-- 导出按钮 -->
+            <Button fx:id="export" layoutX="261.0" layoutY="658.0" mnemonicParsing="false" onAction="#exportNewImage" text="导出新图片" visible="false" />
+            <!-- 图片尺寸配置区域 -->
+            <AnchorPane fx:id="imageConfig" layoutX="325.0" layoutY="430.0" visible="false">
+               <children>
+                  <Label text="Image Config">
+                     <font>
+                        <Font size="14.0" />
+                     </font>
+                  </Label>
+                  <!-- 图片尺寸调整 -->
+                  <Label layoutX="2.0" layoutY="31.0" text="Size" textFill="#838383" />
+                  <Slider fx:id="imageSize" blockIncrement="0.1" layoutX="71.0" layoutY="23.0" majorTickUnit="100.0" max="150.0" min="50.0" onMouseDragged="#imageSize" showTickLabels="true" value="100.0" />
+                  <!-- 图片宽度和高度调整 -->
+                  <Label layoutX="2.0" layoutY="63.0" text="Width" textFill="#838383" />
+                  <TextField fx:id="imageWidth" layoutX="70.0" layoutY="58.0" onKeyReleased="#imageWidth" prefHeight="26.0" prefWidth="46.0" />
+                  <Label fx:id="wInfo" layoutX="122.0" layoutY="66.0" textFill="#ff4848">
+                     <font>
+                        <Font size="10.0" />
+                     </font>
+                  </Label>
+                  <Label layoutX="1.0" layoutY="100.0" text="Height" textFill="#838383" />
+                  <TextField fx:id="imageHeight" layoutX="70.0" layoutY="95.0" onKeyReleased="#imageHeight" prefHeight="26.0" prefWidth="46.0" />
+                  <Label fx:id="hInfo" layoutX="122.0" layoutY="100.0" textFill="#ff4848">
+                     <font>
+                        <Font size="10.0" />
+                     </font>
+                  </Label>
+               </children>
+            </AnchorPane>
+            <!-- 边缘检测按钮 -->
+            <Button fx:id="detectEdgeBtn" layoutX="20.0" layoutY="600.0" onAction="#detectEdge" text="边缘检测" />
+         </children>
+      </AnchorPane>
+   </children>
+</VBox>
