@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox prefHeight="700.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.image.MainController">
+   <children>
+      <!-- Image Display and Interaction Area -->
+      <AnchorPane maxHeight="-1.0" maxWidth="-1.0" prefHeight="500.0" prefWidth="1000.0" style="-fx-background-color: #FFE5A8;" VBox.vgrow="ALWAYS">
+         <children>
+            <!-- Image Display Area -->
+            <AnchorPane fx:id="imagePane" layoutX="150.0" layoutY="20.0"
+                        onDragDropped="#imageDragDropped"
+                        onDragOver="#imageDragOver"
+                        onMouseDragged="#onMouseDragged"
+                        onMousePressed="#onMousePressed"
+                        onMouseReleased="#onMouseReleased"
+                        prefHeight="400.0" prefWidth="400.0"
+                        style="-fx-background-color: #eeeeee; -fx-border-width: 1px; -fx-border-color: #dddddd;">
+               <children>
+                  <ImageView fx:id="imageView" cache="true" fitHeight="400.0" fitWidth="400.0" pickOnBounds="true" preserveRatio="true" />
+                  <!-- File Drag-and-Drop Hint Label -->
+                  <Label fx:id="imageLabel" layoutX="150.0" layoutY="180.0" opacity="0.7" text="Drag file(s) here" textFill="#999999">
+                     <font>
+                        <Font size="16.0" />
+                     </font>
+                  </Label>
+                  <!-- Rectangle to Display Crop Area -->
+                  <AnchorPane fx:id="selectionRect" style="-fx-border-color: blue; -fx-border-width: 2;" visible="false" />
+               </children>
+            </AnchorPane>
+
+            <!-- Crop and Edge Detection Controls -->
+            <VBox layoutX="600.0" layoutY="30.0" spacing="20.0">
+               <Label text="Edge Detection Strength" />
+               <Slider fx:id="strengthSlider" max="100" min="10" value="50" />
+               <Label text="Choose Edge Detection Method" />
+               <HBox spacing="10.0">
+                  <Button fx:id="robertsBtn" onAction="#applyRobertsCross" text="Roberts Cross" />
+                  <Button fx:id="laplacianBtn" onAction="#applyLaplacian" text="Laplacian" />
+                  <Button fx:id="sobelBtn" onAction="#applySobel" text="Sobel" />
+               </HBox>
+            </VBox>
+
+            <!-- Image Operations: Crop, Undo, Export -->
+            <VBox layoutX="600.0" layoutY="250.0" spacing="20.0">
+               <!-- Crop Image -->
+               <Button fx:id="cropBtn" onAction="#cropImage" text="Crop Image" prefHeight="44.0" prefWidth="120.0" />
+
+               <!-- Undo and Export Buttons -->
+               <HBox spacing="10.0">
+                  <Button fx:id="undoBtn" onAction="#undoAction" text="Undo" prefHeight="44.0" prefWidth="80.0" />
+                  <Button fx:id="exportBtn" onAction="#exportNewImage" text="Export Image" prefHeight="44.0" prefWidth="120.0" />
+               </HBox>
+            </VBox>
+         </children>
+      </AnchorPane>
+   </children>
+</VBox>

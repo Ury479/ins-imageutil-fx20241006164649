@@ -1,456 +1,237 @@
 package com.image;
 
+import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.SnapshotParameters;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.image.WritableImage;
 import javafx.scene.input.DragEvent;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.transform.Transform;
-import javafx.stage.DirectoryChooser;
-import javafx.stage.Stage;
+import javafx.concurrent.Task;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.List;
-import java.util.zip.ZipEntry;
+import java.util.Stack;
 import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
+import javax.imageio.ImageIO;
 
 public class MainController {
 
+    // 图像处理相关属性
     private String suffix;
+    private Stack<Image> imageHistory = new Stack<>(); // 用于撤销
+    private Task<?> currentTask; // 当前正在运行的任务
 
-    private double iWidth;
-    private double iHeight;
-    private double pWidth;
-    private double pHeight;
-
-    private double oldPWidth;
-    private double oldPHeight;
-    private double pX;
-    private double pY;
-    private double wX;
-    private double wY;
-    private double wFont;
-
-    @FXML
-    private Button detectEdgeBtn;
-
-    @FXML
-    private void detectEdge(ActionEvent event) {
-        // 使用简单的边缘检测算法
-        Image originalImage = imageView.getImage();
-
-        // 将 JavaFX Image 转换为 BufferedImage
-        BufferedImage bufferedImage = SwingFXUtils.fromFXImage(originalImage, null);
-
-        // 使用简单的算法进行边缘检测
-        for (int y = 0; y < bufferedImage.getHeight(); y++) {
-            for (int x = 0; x < bufferedImage.getWidth(); x++) {
-                // 获取像素颜色
-                int color = bufferedImage.getRGB(x, y);
-                int alpha = (color >> 24) & 0xff;
-
-                // 简单边缘检测: 如果当前像素与右侧像素的颜色差异大于某个阈值，设为黑色，否则设为白色
-                int nextColor = (x < bufferedImage.getWidth() - 1) ? bufferedImage.getRGB(x + 1, y) : color;
-                int colorDiff = Math.abs(color - nextColor);
-
-                // 设置阈值（可调整）
-                int threshold = 30;
-                if (colorDiff > threshold) {
-                    bufferedImage.setRGB(x, y, (alpha << 24) | 0x000000); // 黑色
-                } else {
-                    bufferedImage.setRGB(x, y, (alpha << 24) | 0xffffff); // 白色
-                }
-            }
-        }
-
-        // 将处理后的 BufferedImage 转换回 JavaFX Image
-        Image edgeImage = SwingFXUtils.toFXImage(bufferedImage, null);
-        imageView.setImage(edgeImage);
-    }
-
-    private void processImagesInBatch(List<File> files) {
-        ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-        for (File file : files) {
-            executorService.submit(() -> {
-                try {
-                    // 加载图像
-                    Image image = new Image(file.toURI().toString());
-                    BufferedImage bufferedImage = SwingFXUtils.fromFXImage(image, null);
-
-                    // 执行边缘检测和裁剪操作（此处可以根据需要自定义）
-                    // 例如，调用 detectEdge() 和 cropImage() 方法
-
-                    // 保存处理后的图像
-                    File outputDir = new File("output");
-                    if (!outputDir.exists()) outputDir.mkdir();
-                    File outputFile = new File(outputDir, "processed_" + file.getName());
-                    ImageIO.write(bufferedImage, "png", outputFile);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-        }
-        executorService.shutdown();
-    }
-
-    @FXML
-    private Button cropImageBtn;
-
-    @FXML
-    private void cropImage(ActionEvent event) {
-        // 获取用户选择的裁剪区域
-        // 为了简单起见，我们假设裁剪区域为图像中心的一个矩形区域
-        Image originalImage = imageView.getImage();
-        BufferedImage bufferedImage = SwingFXUtils.fromFXImage(originalImage, null);
-
-        // 设置裁剪区域（x, y, width, height）
-        int cropX = bufferedImage.getWidth() / 4;
-        int cropY = bufferedImage.getHeight() / 4;
-        int cropWidth = bufferedImage.getWidth() / 2;
-        int cropHeight = bufferedImage.getHeight() / 2;
-
-        // 裁剪图像
-        BufferedImage croppedImage = bufferedImage.getSubimage(cropX, cropY, cropWidth, cropHeight);
-
-        // 转换回 JavaFX Image 并更新 ImageView
-        Image fxCroppedImage = SwingFXUtils.toFXImage(croppedImage, null);
-        imageView.setImage(fxCroppedImage);
-    }
-
-
+    // FXML 绑定的组件
     @FXML
     private AnchorPane imagePane;
     @FXML
+    private AnchorPane selectionRect; // 用于显示裁剪区域的矩形
+    @FXML
     private ImageView imageView;
+    @FXML
+    private Slider strengthSlider;
     @FXML
     private Label imageLabel;
 
+    // 裁剪区域的坐标
+    private double startX, startY, endX, endY;
 
-    @FXML
-    private AnchorPane waterMarkConfig;
-    @FXML
-    private AnchorPane imageConfig;
-    @FXML
-    private Button export;
-
-
-    @FXML
-    private Label waterMark;
-    @FXML
-    private TextField waterMarkText;
-    @FXML
-    private Slider waterMarkSize;
-    @FXML
-    private Slider waterMarkRotate;
-    @FXML
-    private ColorPicker waterMarkColor;
-    @FXML
-    private Slider waterMarkOpacity;
-
-    @FXML
-    private Slider imageSize;
-    @FXML
-    private TextField imageWidth;
-    @FXML
-    private Label wInfo;
-    @FXML
-    private TextField imageHeight;
-    @FXML
-    private Label hInfo;
-
+    // 初始化方法
     @FXML
     public void initialize() {
-        System.out.println("init");
+        System.out.println("MainController initialized");
+        selectionRect.setVisible(false); // 初始化时隐藏裁剪矩形
     }
 
-    public void imageDragOver(DragEvent event){
+    // 图像拖拽进入检测
+    public void imageDragOver(DragEvent event) {
         if (event.getDragboard().hasFiles() || event.getDragboard().hasUrl()) {
             event.acceptTransferModes(javafx.scene.input.TransferMode.COPY);
             imagePane.setStyle("-fx-background-color: #aaaaaa; -fx-border-color: red;");
         }
         event.consume();
     }
+
+    // 处理图像拖拽放下操作
     public void imageDragDropped(DragEvent event) throws IOException {
+        // 检查拖拽文件并加载图像
         if (event.getDragboard().hasFiles()) {
             File file = event.getDragboard().getFiles().get(0);
             suffix = getFileSuffix(file.getName());
-            List<String> fileSuffixs = new ArrayList<>();
-            fileSuffixs.add("png");
-            fileSuffixs.add("jpg");
-            fileSuffixs.add("jpeg");
-            fileSuffixs.add("zip");
-            if (!fileSuffixs.contains(suffix)){
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setContentText("please select 'png、jpg、jpeg' file");
-                alert.show();
-                imagePane.setStyle("-fx-background-color: #eeeeee; -fx-border-color: #dddddd;");
-                return;
-            }
-            List<Image> images = new ArrayList<>();
-             if (suffix.equals("zip")){
-                ZipFile zipFile = new ZipFile(file);
-                Enumeration<? extends ZipEntry> entries = zipFile.entries();
-
-                while(entries.hasMoreElements()){
-                    ZipEntry entry = entries.nextElement();
-                    System.out.println("fileName:"+entry.getName()); //文件名
-                    InputStream stream = zipFile.getInputStream(entry); //读取文件内容
-                    Image image = new Image(stream);
-                    if (image.getWidth() > 0 && image.getHeight() >0) {
-                        images.add(image);
-                    }
-                }
-            }else{
-                Image image = new Image("file:" + file.getAbsolutePath());
-                images.add(image);
-            }
-
-            this.reset();
-
-            imageView.setImage(images.stream().findFirst().get());
-            iWidth = imageView.getImage().getWidth();
-            iHeight = imageView.getImage().getHeight();
-            pWidth = imagePane.getPrefWidth();
-            pHeight = imagePane.getPrefHeight();
-            pX = imagePane.getLayoutX();
-            pY = imagePane.getLayoutY();
-
-            wX = waterMark.getLayoutX();
-            wY = waterMark.getLayoutY();
-            wFont = waterMark.getFont().getSize();
-
-            imagePane.setStyle("-fx-background-color: #ffffff; -fx-border-color: #00000000; -fx-border-width: 0px;");
-            imageLabel.setText("");
-            this.centerImage(1);
-            oldPWidth = imagePane.getPrefWidth();
-            oldPHeight = imagePane.getPrefHeight();
-
-            imageWidth.setText(String.format("%.0f", oldPWidth));
-            imageHeight.setText(String.format("%.0f", oldPHeight));
-
-            waterMarkConfig.setVisible(true);
-            imageConfig.setVisible(true);
-            export.setVisible(true);
+            loadImageFromFile(file);
         }
         event.setDropCompleted(true);
         event.consume();
     }
 
-
-
-    public void changeWaterMarkText(KeyEvent event) {
-        waterMark.setText(waterMarkText.getText());
+    /**
+     * 当鼠标在 imageView 上按下时触发，开始选择裁剪区域
+     */
+    @FXML
+    private void onMousePressed(MouseEvent event) {
+        startX = event.getX();
+        startY = event.getY();
+        selectionRect.setVisible(true); // 显示裁剪矩形
+        selectionRect.setLayoutX(startX); // 设置矩形起始 X 坐标
+        selectionRect.setLayoutY(startY); // 设置矩形起始 Y 坐标
+        selectionRect.setPrefWidth(0); // 重置矩形宽度
+        selectionRect.setPrefHeight(0); // 重置矩形高度
     }
 
-    public void changeWaterMarkSize(MouseEvent event) {
-        waterMark.setFont(new Font(waterMarkSize.getValue()));
-        wFont = waterMarkSize.getValue();
+    /**
+     * 当鼠标在 imageView 上拖拽时触发，调整裁剪区域大小
+     */
+    @FXML
+    private void onMouseDragged(MouseEvent event) {
+        endX = event.getX();
+        endY = event.getY();
+
+        // 计算矩形的宽和高
+        double width = Math.abs(endX - startX);
+        double height = Math.abs(endY - startY);
+
+        // 设置矩形的宽高及位置
+        selectionRect.setPrefWidth(width);
+        selectionRect.setPrefHeight(height);
+        selectionRect.setLayoutX(Math.min(startX, endX));
+        selectionRect.setLayoutY(Math.min(startY, endY));
     }
 
-    public void changeWaterMarkRotate(MouseEvent event) {
-        waterMark.setRotate(waterMarkRotate.getValue());
+    /**
+     * 当鼠标在 imageView 上释放时触发，结束选择裁剪区域
+     */
+    @FXML
+    private void onMouseReleased(MouseEvent event) {
+        endX = event.getX();
+        endY = event.getY();
+        // 当鼠标松开时，记录最终的坐标，矩形显示结束
     }
 
-    public void changeWaterMarkColor(ActionEvent event) {
-        waterMark.setTextFill(waterMarkColor.getValue());
-    }
-
-    public void changeWaterMarkOpacity(MouseEvent event) {
-        waterMark.setOpacity(waterMarkOpacity.getValue());
-    }
-
-    public void imageSize(MouseEvent event) {
-        double value = imageSize.getValue() * 0.01;
-
-        imageView.setPreserveRatio(true);
-        this.centerImage(value);
-
-        imageWidth.setText(String.format("%.0f", imagePane.getPrefWidth()));
-        imageHeight.setText(String.format("%.0f", imagePane.getPrefHeight()));
-    }
-
-    public void imageWidth(KeyEvent event) {
-        if (imageWidth.getText() == null || imageWidth.getText().equals("")){
+    /**
+     * 当裁剪按钮被点击时触发
+     */
+    @FXML
+    private void cropImage(ActionEvent event) {
+        if (imageView.getImage() == null) {
+            showAlert("No image loaded!");
             return;
         }
-        double value;
-        try {
-            value = Double.parseDouble(imageWidth.getText());
-        } catch (Exception e){
-            wInfo.setText("please enter a number");
-            wInfo.setVisible(true);
-            return;
-        }
-        if (value <= 0){
-            return;
-        }
-        double radio = value / oldPWidth;
-        if (radio < 0.5 || radio> 1.5) {
-            wInfo.setText("between "+String.format("%.0f", 0.5*oldPWidth)+" and "+String.format("%.0f", 1.5*oldPWidth));
-            wInfo.setVisible(true);
-            return;
-        }else{
-            wInfo.setText("");
-            wInfo.setVisible(false);
-        }
 
-        this.centerImage(radio);
-        imageSize.setValue(radio * 100);
-        imageHeight.setText(String.format("%.0f", oldPHeight * imageSize.getValue() * 0.01));
-    }
+        // 使用 ImageUtils 进行裁剪
+        Image croppedImage = ImageUtils.cropImage(imageView, startX, startY, endX, endY);
 
-    public void imageHeight(KeyEvent event) {
-        if (imageHeight.getText() == null || imageHeight.getText().equals("")){
-            return;
-        }
-        double value;
-        try {
-            value = Double.parseDouble(imageHeight.getText());
-        } catch (Exception e){
-            hInfo.setText("please enter a number");
-            hInfo.setVisible(true);
-            return;
-        }
-        if (value <= 0){
-            return;
-        }
-        double radio = value / oldPHeight;
-        if (radio < 0.5 || radio>1.5) {
-            hInfo.setText("between "+String.format("%.0f",0.5*oldPHeight)+" and "+String.format("%.0f",1.5*oldPHeight));
-            hInfo.setVisible(true);
-            return;
-        }else{
-            hInfo.setText("");
-            hInfo.setVisible(false);
-        }
-
-        this.centerImage(radio);
-        imageSize.setValue(radio*100);
-        imageWidth.setText(String.format("%.0f", oldPWidth * imageSize.getValue() * 0.01));
-    }
-
-    public void exportNewImage(ActionEvent event){
-        SnapshotParameters sp =  new SnapshotParameters();
-        sp.setTransform(Transform.scale(5, 5));
-
-        WritableImage imgReturn = imagePane.snapshot(sp, null);
-        DirectoryChooser directoryChooser =new DirectoryChooser();
-        File directory = directoryChooser.showDialog(new Stage());
-        String fileName = directory + "/newImage." + suffix;
-        File file = new File(fileName);
-        BufferedImage bufferedImage = SwingFXUtils.fromFXImage(imgReturn, null);
-        boolean write = false;
-        try {
-            write = ImageIO.write(bufferedImage, "png", file);
-        } catch (IOException e) {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setContentText("file write error");
-            alert.show();
-            System.out.println(e);
-            return;
-        }
-        if (write){
-            file.renameTo(new File(this.getFileName(file.getPath()) + "." + suffix));
-        }
-    }
-
-    private void centerImage(double size) {
-        double newWidth = pWidth * size;
-        double newHeight = pHeight * size;
-        Image img = imageView.getImage();
-        if (img != null) {
-            double w = 0;
-            double h = 0;
-
-            double reducCoeff = this.getReducCoeff(newWidth, newHeight);
-
-            w = iWidth * reducCoeff;
-            h = iHeight * reducCoeff;
-
-            imagePane.setLayoutX(pX + (pWidth - w) / 2);
-            imagePane.setLayoutY(pY + (pHeight - h) / 2);
-            waterMark.setLayoutX(wX * reducCoeff);
-            waterMark.setLayoutY(wY * reducCoeff);
-            waterMark.setFont(new Font(wFont*size ));
-
-            imagePane.setPrefWidth(w);
-            imagePane.setMaxWidth(w);
-            imagePane.setMinWidth(w);
-
-            imagePane.setPrefHeight(h);
-            imagePane.setMaxHeight(h);
-            imagePane.setMinHeight(h);
-
-            imageView.setFitWidth(w);
-            imageView.setFitHeight(h);
-
-
-        }
-    }
-    private double getReducCoeff(double newWidth, double newHeight){
-        double ratioW = newWidth / iWidth;
-        double ratioH = newHeight / iHeight;
-        double reducCoeff = 0;
-        if(ratioW >= ratioH) {
-            reducCoeff = ratioH;
+        if (croppedImage != null) {
+            // 更新 ImageView 显示裁剪后的图像
+            imageView.setImage(croppedImage);
+            selectionRect.setVisible(false); // 隐藏裁剪框
+            showAlert("Image cropped successfully!");
         } else {
-            reducCoeff = ratioW;
+            showAlert("Cropping failed.");
         }
-        return reducCoeff;
     }
 
-    private void reset(){
-        if (pWidth>0) {
-            imagePane.setPrefWidth(pWidth);
+    // 导出图像
+    @FXML
+    private void exportNewImage(ActionEvent event) {
+        if (imageView.getImage() == null) {
+            showAlert("No image to export!");
+            return;
         }
-        if (pHeight>0) {
-            imagePane.setPrefHeight(pHeight);
-        }
-
-        imagePane.setLayoutX(150);
-        imagePane.setLayoutY(60);
-
-        waterMark.setText("");
-        waterMark.setFont(new Font(36));
-        waterMark.setRotate(0);
-        waterMark.setTextFill(Color.web("#333333"));
-        waterMark.setOpacity(0.5);
-
-        waterMarkText.setText("");
-        waterMarkSize.setValue(36);
-        waterMarkRotate.setValue(0);
-        waterMarkColor.setValue(Color.web("#333333"));
-        waterMarkOpacity.setValue(0.5);
-
-        imageSize.setValue(100);
-        imageWidth.setText("");
-        imageHeight.setText("");
+        ImageExportUtils.exportImage(imagePane, suffix); // 使用工具类进行导出
     }
 
-    private String getFileName(String name){
-        return name.substring(0, name.lastIndexOf("."));
+    // 应用边缘检测算法
+    @FXML
+    public void applyRobertsCross(ActionEvent event) { applyEdgeDetection("roberts"); }
+    @FXML
+    public void applyLaplacian(ActionEvent event) { applyEdgeDetection("laplacian"); }
+    @FXML
+    public void applySobel(ActionEvent event) { applyEdgeDetection("sobel"); }
+
+    // 应用边缘检测任务
+    private void applyEdgeDetection(String method) {
+        if (imageView.getImage() == null) {
+            showAlert("No image loaded!");
+            return;
+        }
+        if (currentTask != null && currentTask.isRunning()) {
+            currentTask.cancel();
+        }
+        saveHistory(imageView.getImage()); // 存储历史图像状态
+
+        BufferedImage bufferedImage = SwingFXUtils.fromFXImage(imageView.getImage(), null);
+        int strength = (int) strengthSlider.getValue();
+        EdgeDetectionTask task = new EdgeDetectionTask(bufferedImage, method, strength);
+        currentTask = task;
+
+        task.setOnSucceeded(workerStateEvent -> imageView.setImage(task.getValue()));
+        task.setOnFailed(workerStateEvent -> showAlert("Edge detection failed!"));
+        new Thread(task).start();
     }
 
-    private String getFileSuffix(String name){
-        return name.substring(name.lastIndexOf(".")+1);
+    // 保存历史记录
+    private void saveHistory(Image image) {
+        imageHistory.push(image);
+    }
+
+    // 撤销操作
+    @FXML
+    private void undoAction(ActionEvent event) {
+        if (!imageHistory.isEmpty()) {
+            Image previousImage = imageHistory.pop();
+            imageView.setImage(previousImage);
+        }
+    }
+
+    // 显示提示信息
+    private void showAlert(String message) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Image Processing");
+            alert.setHeaderText(null);
+            alert.setContentText(message);
+            alert.showAndWait();
+        });
+    }
+
+    // 工具方法：获取文件后缀
+    private String getFileSuffix(String name) {
+        return name.substring(name.lastIndexOf(".") + 1);
+    }
+
+    // 加载图像文件
+    private void loadImageFromFile(File file) {
+        List<Image> images = new ArrayList<>();
+        try {
+            if (suffix.equals("zip")) {
+                ZipFile zipFile = new ZipFile(file);
+                zipFile.stream().forEach(entry -> {
+                    try {
+                        Image image = new Image(zipFile.getInputStream(entry));
+                        if (image.getWidth() > 0 && image.getHeight() > 0) {
+                            images.add(image);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+            } else {
+                Image image = new Image("file:" + file.getAbsolutePath());
+                images.add(image);
+            }
+        } catch (IOException e) {
+            showAlert("Error loading image file: " + e.getMessage());
+        }
+        imageView.setImage(images.get(0));
+        saveHistory(imageView.getImage()); // 存储当前图像状态
     }
 }
-
-
